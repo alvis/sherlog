@@ -1,6 +1,17 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+# 1.0.1 (2026-11-12)
+
+
+### 🐞 Bug Fixes
+
+* parse async, constructor and method frames in disassembleStack (#1) (6494589)
+
+
+### 🛠 Builds
+
+* **deps:** update dependencies to their latest versions (#2) (2d09547)
 # 1.0.0 (2026-07-21)
 
 

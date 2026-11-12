@@ -1,6 +1,6 @@
 {
   "name": "sherlog",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Beautiful error rendering — colorized stack traces with source code display.",
   "keywords": [
     "error",
