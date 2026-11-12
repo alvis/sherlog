@@ -83,6 +83,20 @@ describe('fn:assembleStack', () => {
 
     expect(result).toEqual(expected);
   });
+
+  it('should reassemble async, constructor, method and aliased frames with their name text', () => {
+    const expected =
+      'Error: boom\n' +
+      '    at Repository.load (file:///app/repository.js:3:18)\n' +
+      '    at new Repository (file:///app/repository.js:2:24)\n' +
+      '    at Object.<anonymous> (/app/index.js:6:31)\n' +
+      '    at Service.fetch [as get] (/app/service.js:4:5)\n' +
+      '    at async main (file:///app/index.js:9:3)';
+
+    const result = assembleStack(disassembleStack(expected));
+
+    expect(result).toEqual(expected);
+  });
 });
 
 describe('fn:disassembleStack', () => {
@@ -115,6 +129,203 @@ describe('fn:disassembleStack', () => {
 
     expect(result).toEqual([
       { type: 'description', name: 'Error', message: '' },
+    ]);
+  });
+
+  it('should disassemble an async frame', () => {
+    const result = disassembleStack(
+      '    at async main (file:///app/index.js:9:3)',
+    );
+
+    expect(result).toEqual([
+      {
+        type: 'location',
+        entry: 'async main',
+        location: 'file:///app/index.js',
+        line: 9,
+        column: 3,
+      },
+    ]);
+  });
+
+  it('should disassemble an anonymous async frame without taking the async marker as part of the location', () => {
+    const result = disassembleStack('    at async file:///app/index.js:11:7');
+
+    expect(result).toEqual([
+      {
+        type: 'location',
+        entry: 'async',
+        location: 'file:///app/index.js',
+        line: 11,
+        column: 7,
+      },
+    ]);
+  });
+
+  it('should disassemble a constructor frame', () => {
+    const result = disassembleStack(
+      '    at new Repository (/app/repository.js:2:24)',
+    );
+
+    expect(result).toEqual([
+      {
+        type: 'location',
+        entry: 'new Repository',
+        location: '/app/repository.js',
+        line: 2,
+        column: 24,
+      },
+    ]);
+  });
+
+  it('should disassemble a method frame', () => {
+    const result = disassembleStack(
+      '    at Repository.load (/app/repository.js:3:18)',
+    );
+
+    expect(result).toEqual([
+      {
+        type: 'location',
+        entry: 'Repository.load',
+        location: '/app/repository.js',
+        line: 3,
+        column: 18,
+      },
+    ]);
+  });
+
+  it('should disassemble a frame of an anonymous function called as a method', () => {
+    const result = disassembleStack(
+      '    at Object.<anonymous> (/app/index.js:6:31)',
+    );
+
+    expect(result).toEqual([
+      {
+        type: 'location',
+        entry: 'Object.<anonymous>',
+        location: '/app/index.js',
+        line: 6,
+        column: 31,
+      },
+    ]);
+  });
+
+  it('should disassemble a frame with a method alias', () => {
+    const result = disassembleStack(
+      '    at Service.fetch [as get] (/app/service.js:4:5)',
+    );
+
+    expect(result).toEqual([
+      {
+        type: 'location',
+        entry: 'Service.fetch [as get]',
+        location: '/app/service.js',
+        line: 4,
+        column: 5,
+      },
+    ]);
+  });
+
+  it('should disassemble an eval frame at the source of its outermost eval call', () => {
+    const result = disassembleStack(
+      '    at eval (eval at <anonymous> (file:///app/index.js:12:7), <anonymous>:1:16)\n' +
+        '    at eval (eval at run (eval at <anonymous> (file:///app/index.js:13:7), <anonymous>:1:1), <anonymous>:2:3)',
+    );
+
+    expect(result).toEqual([
+      {
+        type: 'location',
+        entry: 'eval',
+        location: 'file:///app/index.js',
+        line: 12,
+        column: 7,
+      },
+      {
+        type: 'location',
+        entry: 'eval',
+        location: 'file:///app/index.js',
+        line: 13,
+        column: 7,
+      },
+    ]);
+  });
+
+  it('should skip frames without a source position while keeping the rest', () => {
+    const result = disassembleStack(
+      'Error: boom\n' +
+        '    at Array.map (<anonymous>)\n' +
+        '    at new Promise (<anonymous>)\n' +
+        '    at async Promise.all (index 0)\n' +
+        '    at Generator.next (native)\n' +
+        '    at async main (file:///app/index.js:9:3)',
+    );
+
+    expect(result).toEqual([
+      { type: 'description', name: 'Error', message: 'boom' },
+      {
+        type: 'location',
+        entry: 'async main',
+        location: 'file:///app/index.js',
+        line: 9,
+        column: 3,
+      },
+    ]);
+  });
+
+  it('should disassemble a frame with a windows path containing parentheses', () => {
+    const result = disassembleStack(
+      '    at new Repository (C:\\Program Files (x86)\\app\\repository.js:2:24)',
+    );
+
+    expect(result).toEqual([
+      {
+        type: 'location',
+        entry: 'new Repository',
+        location: 'C:\\Program Files (x86)\\app\\repository.js',
+        line: 2,
+        column: 24,
+      },
+    ]);
+  });
+
+  it('should disassemble firefox and safari frames', () => {
+    const result = disassembleStack(
+      'Repository.prototype.load@https://app.test/repository.js:3:18\n' +
+        'async*main@https://app.test/index.js:9:3\n' +
+        '@https://app.test/index.js:11:7\n' +
+        'forEach@[native code]\n' +
+        'global code@https://app.test/index.js:12:1',
+    );
+
+    expect(result).toEqual([
+      {
+        type: 'location',
+        entry: 'Repository.prototype.load',
+        location: 'https://app.test/repository.js',
+        line: 3,
+        column: 18,
+      },
+      {
+        type: 'location',
+        entry: 'async*main',
+        location: 'https://app.test/index.js',
+        line: 9,
+        column: 3,
+      },
+      {
+        type: 'location',
+        entry: '',
+        location: 'https://app.test/index.js',
+        line: 11,
+        column: 7,
+      },
+      {
+        type: 'location',
+        entry: 'global code',
+        location: 'https://app.test/index.js',
+        line: 12,
+        column: 1,
+      },
     ]);
   });
 });

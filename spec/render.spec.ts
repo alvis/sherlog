@@ -141,6 +141,36 @@ describe('fn:renderError', () => {
     );
   });
 
+  it.each(['async load', 'Repository.load', 'new Repository'])(
+    'should show the source of a throwing %s frame',
+    async (entry) => {
+      const rendered = (
+        await renderError(
+          new MockedError(
+            'Error1: message1\n' +
+              `    at ${entry} (src1:2:0)\n` +
+              '    at entry2 (src2:9:0)',
+          ),
+          { showSource: true },
+        )
+      ).replace(ansi, '');
+
+      expect(rendered).toEqual(
+        '[Error1] message1\n' +
+          `    at ${entry} (src1:2:0)\n` +
+          '\n' +
+          '   1 | line 1\n' +
+          ' > 2 | line 2\n' +
+          '   3 | line 3\n' +
+          '   4 | line 4\n' +
+          '   5 | line 5\n' +
+          '   6 | line 6\n' +
+          '\n' +
+          '    at entry2 (src2:9:0)',
+      );
+    },
+  );
+
   it('should render an error stack with the source absent', async () => {
     const rendered = (
       await renderError(
